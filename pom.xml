@@ -180,6 +180,10 @@
             <version>${kafka.connect.storage.common.version}</version>
             <exclusions>
                 <exclusion>
+                    <groupId>org.pentaho</groupId>
+                    <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty</artifactId>
                 </exclusion>
