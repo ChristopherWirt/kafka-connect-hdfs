@@ -15,24 +15,20 @@
 
 package io.confluent.connect.hdfs;
 
-import io.confluent.connect.hdfs.orc.OrcFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-import io.confluent.connect.hdfs.parquet.ParquetFormat;
-import io.confluent.connect.hdfs.string.StringFormat;
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.kafka.common.config.AbstractConfig;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigDef.Importance;
-import org.apache.kafka.common.config.ConfigDef.Type;
-import org.apache.kafka.common.config.ConfigDef.Width;
-import org.apache.kafka.common.config.ConfigException;
+import static io.confluent.connect.hdfs.HdfsSinkConnector.TASK_ID_CONFIG_NAME;
+import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_CONFIG;
+import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_DISPLAY;
+import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_DOC;
+import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_CONFIG;
+import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DEFAULT;
+import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DISPLAY;
+import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DOC;
+import static io.confluent.connect.storage.hive.HiveConfig.HIVE_DATABASE_CONFIG;
+import static io.confluent.connect.storage.hive.HiveConfig.HIVE_INTEGRATION_CONFIG;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -43,10 +39,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 import io.confluent.connect.hdfs.avro.AvroFormat;
 import io.confluent.connect.hdfs.json.JsonFormat;
+import io.confluent.connect.hdfs.orc.OrcFormat;
+import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.hdfs.storage.HdfsStorage;
+import io.confluent.connect.hdfs.string.StringFormat;
 import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.storage.StorageSinkConnectorConfig;
 import io.confluent.connect.storage.common.ComposableConfig;
@@ -60,17 +64,16 @@ import io.confluent.connect.storage.partitioner.FieldPartitioner;
 import io.confluent.connect.storage.partitioner.HourlyPartitioner;
 import io.confluent.connect.storage.partitioner.PartitionerConfig;
 import io.confluent.connect.storage.partitioner.TimeBasedPartitioner;
-
-import static io.confluent.connect.hdfs.HdfsSinkConnector.TASK_ID_CONFIG_NAME;
-import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_CONFIG;
-import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_DISPLAY;
-import static io.confluent.connect.storage.common.StorageCommonConfig.STORAGE_CLASS_DOC;
-import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_CONFIG;
-import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DEFAULT;
-import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DISPLAY;
-import static io.confluent.connect.storage.common.StorageCommonConfig.TOPICS_DIR_DOC;
-import static io.confluent.connect.storage.hive.HiveConfig.HIVE_DATABASE_CONFIG;
-import static io.confluent.connect.storage.hive.HiveConfig.HIVE_INTEGRATION_CONFIG;
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.config.ConfigDef.Width;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.utils.Utils;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
 import org.apache.kafka.common.utils.Utils;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -177,6 +180,7 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       = new ParentValueRecommender(FORMAT_CLASS_CONFIG, AvroFormat.class, AVRO_SUPPORTED_CODECS);
   private static final ParquetCodecRecommender PARQUET_COMPRESSION_RECOMMENDER 
       = new ParquetCodecRecommender();
+
   static {
     STORAGE_CLASS_RECOMMENDER.addValidValues(
         Arrays.asList(HdfsStorage.class)
