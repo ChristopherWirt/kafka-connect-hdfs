@@ -15,6 +15,7 @@
 
 package io.confluent.connect.hdfs;
 
+import io.confluent.connect.hdfs.wal.NoopWAL;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.kafka.common.TopicPartition;
@@ -201,7 +202,8 @@ public class TopicPartitionWriter {
         config.getString(StorageSinkConnectorConfig.SCHEMA_COMPATIBILITY_CONFIG));
 
     String logsDir = config.getLogsDirFromTopic(tp.topic());
-    wal = storage.wal(logsDir, tp);
+    boolean disableWal = config.getBoolean(HdfsSinkConnectorConfig.DISABLE_WAL_CONFIG);
+    wal = disableWal ? new NoopWAL() : storage.wal(logsDir, tp);
 
     buffer = new LinkedList<>();
     writers = new HashMap<>();

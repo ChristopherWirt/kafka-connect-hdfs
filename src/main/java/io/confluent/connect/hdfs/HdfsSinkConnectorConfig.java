@@ -39,11 +39,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 
 import io.confluent.connect.hdfs.avro.AvroFormat;
 import io.confluent.connect.hdfs.json.JsonFormat;
@@ -51,7 +49,6 @@ import io.confluent.connect.hdfs.orc.OrcFormat;
 import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.hdfs.storage.HdfsStorage;
 import io.confluent.connect.hdfs.string.StringFormat;
-import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.storage.StorageSinkConnectorConfig;
 import io.confluent.connect.storage.common.ComposableConfig;
 import io.confluent.connect.storage.common.GenericRecommender;
@@ -72,9 +69,6 @@ import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.utils.Utils;
-import org.apache.parquet.hadoop.metadata.CompressionCodecName;
-
 import org.apache.kafka.common.utils.Utils;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
@@ -165,6 +159,12 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       "The period in milliseconds to renew the Kerberos ticket.";
   private static final String KERBEROS_TICKET_RENEW_PERIOD_MS_DISPLAY = "Kerberos Ticket Renew "
       + "Period (ms)";
+
+  public static final String DISABLE_WAL_CONFIG = "wal.disable";
+  private static final boolean DISABLE_WAL_DEFAULT = false;
+  private static final String DISABLE_WAL_DOC = "Disable WAL from being used to track the "
+      + " committed files - can be used for testing the fallback methods";
+  private static final String DISABLE_WAL_DISPLAY = "Disable WAL";
 
   private static final Pattern SUBSTITUTION_PATTERN = Pattern.compile("\\$\\{(\\d+)}");
   private static final Pattern INVALID_SUB_PATTERN = Pattern.compile("\\$\\{.*}");
@@ -275,6 +275,19 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
               Width.SHORT,
               HIVE_TABLE_NAME_DISPLAY
       );
+
+      configDef.define(
+          DISABLE_WAL_CONFIG,
+          Type.BOOLEAN,
+          DISABLE_WAL_DEFAULT,
+          Importance.LOW,
+          DISABLE_WAL_DOC,
+          group,
+          ++orderInGroup,
+          Width.MEDIUM,
+          DISABLE_WAL_DISPLAY
+      );
+
     }
 
     {
