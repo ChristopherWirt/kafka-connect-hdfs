@@ -35,6 +35,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -49,6 +51,7 @@ import io.confluent.connect.hdfs.orc.OrcFormat;
 import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.hdfs.storage.HdfsStorage;
 import io.confluent.connect.hdfs.string.StringFormat;
+import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.storage.StorageSinkConnectorConfig;
 import io.confluent.connect.storage.common.ComposableConfig;
 import io.confluent.connect.storage.common.GenericRecommender;
@@ -69,6 +72,9 @@ import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.utils.Utils;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+
 import org.apache.kafka.common.utils.Utils;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
