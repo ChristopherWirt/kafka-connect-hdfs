@@ -17,11 +17,13 @@ package io.confluent.connect.hdfs.parquet;
 
 import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.avro.AvroWriteSupport;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -69,13 +71,15 @@ public class ParquetRecordWriterProvider
           try {
             log.info("Opening record writer for: {}", filename);
             org.apache.avro.Schema avroSchema = avroData.fromConnectSchema(schema);
+            Configuration avroConfig = conf.getHadoopConfiguration();
+            avroConfig.setBoolean(AvroWriteSupport.WRITE_OLD_LIST_STRUCTURE, false);
             writer = AvroParquetWriter.<GenericRecord>builder(path)
                 .withSchema(avroSchema)
                 .withCompressionCodec(compressionCodecName)
                 .withRowGroupSize(blockSize)
                 .withPageSize(pageSize)
                 .withDictionaryEncoding(true)
-                .withConf(conf.getHadoopConfiguration())
+                .withConf(avroConfig)
                 .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
                 .build();
             log.debug("Opened record writer for: {}", filename);
