@@ -74,6 +74,12 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
 public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
 
+  public static final String ROTATE_MAX_FILE_SIZE_BYTES_CONFIG = "rotate.max.bytes";
+  private static final String ROTATE_MAX_FILE_SIZE_BYTES_DOC = "Rotate file before hitting the "
+      + "max file size. But getting as close as reasonably possible.";
+  private static final String ROTATE_MAX_FILE_SIZE_BYTES_DISPLAY = "Rotate Max Bytes";
+  private static final long ROTATE_MAX_FILE_SIZE_BYTES_DEFAULT = -1;
+
   private static final String TOPIC_SUBSTITUTION = "${topic}";
 
   // HDFS Group
@@ -286,6 +292,18 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
           ++orderInGroup,
           Width.MEDIUM,
           DISABLE_WAL_DISPLAY
+      );
+
+      configDef.define(
+          ROTATE_MAX_FILE_SIZE_BYTES_CONFIG,
+          Type.LONG,
+          ROTATE_MAX_FILE_SIZE_BYTES_DEFAULT,
+          Importance.LOW,
+          ROTATE_MAX_FILE_SIZE_BYTES_DOC,
+          group,
+          ++orderInGroup,
+          Width.MEDIUM,
+          ROTATE_MAX_FILE_SIZE_BYTES_DISPLAY
       );
 
     }

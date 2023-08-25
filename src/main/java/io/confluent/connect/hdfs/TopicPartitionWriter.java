@@ -16,6 +16,7 @@
 package io.confluent.connect.hdfs;
 
 import io.confluent.connect.hdfs.wal.NoopWAL;
+import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.kafka.common.TopicPartition;
@@ -60,6 +61,11 @@ import io.confluent.connect.storage.schema.StorageSchemaCompatibility;
 import io.confluent.connect.storage.wal.WAL;
 import io.confluent.connect.storage.wal.FilePathOffset;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+import static org.apache.parquet.column.ParquetProperties.DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK;
+import static org.apache.parquet.column.ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
+
 public class TopicPartitionWriter {
   private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
   private static final TimestampExtractor WALLCLOCK =
@@ -89,6 +95,10 @@ public class TopicPartitionWriter {
   private Long lastRotate;
   private final long rotateScheduleIntervalMs;
   private long nextScheduledRotate;
+
+  private final long maxFileSizeRotationBytes;
+  private MaxFileSizeRotator maxFilesizeRotator;
+
   // This is one case where we cannot simply wrap the old or new RecordWriterProvider with the
   // other because they have incompatible requirements for some methods -- one requires the Hadoop
   // config + extra parameters, the other requires the ConnectorConfig and doesn't get the other
@@ -197,6 +207,8 @@ public class TopicPartitionWriter {
     rotateIntervalMs = config.getLong(HdfsSinkConnectorConfig.ROTATE_INTERVAL_MS_CONFIG);
     rotateScheduleIntervalMs = config.getLong(HdfsSinkConnectorConfig
         .ROTATE_SCHEDULE_INTERVAL_MS_CONFIG);
+    maxFileSizeRotationBytes = config.getLong(HdfsSinkConnectorConfig
+        .ROTATE_MAX_FILE_SIZE_BYTES_CONFIG);
     timeoutMs = config.getLong(HdfsSinkConnectorConfig.RETRY_BACKOFF_CONFIG);
     compatibility = StorageSchemaCompatibility.getCompatibility(
         config.getString(StorageSinkConnectorConfig.SCHEMA_COMPATIBILITY_CONFIG));
@@ -319,6 +331,8 @@ public class TopicPartitionWriter {
         );
       }
     }
+
+    maxFilesizeRotator = new MaxFileSizeRotator(maxFileSizeRotationBytes);
   }
 
   @SuppressWarnings("fallthrough")
@@ -561,6 +575,48 @@ public class TopicPartitionWriter {
     this.state = state;
   }
 
+  public static class MaxFileSizeRotator {
+    private final long maxFileSizeBytes;
+    private long recordCountForNextMemCheck = DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
+
+    public MaxFileSizeRotator(long maxFileSize) {
+      this.maxFileSizeBytes = maxFileSize;
+    }
+
+    public boolean checkMaxFileSizeReached(RecordWriter recordWriter, long recordCount) {
+      MaxSizeRecordWriter writer = (recordWriter instanceof MaxSizeRecordWriter)
+          ? (MaxSizeRecordWriter) recordWriter
+          : null;
+      if (writer == null || maxFileSizeBytes == -1) {
+        return false;
+      }
+
+      if (recordCount > recordCountForNextMemCheck) {
+
+        // Modified for readability version of InternalParquetRecordWriter.checkBlockSizeReached()
+        long memSize = writer.getDataSize();
+        long recordSize = memSize / recordCount;
+
+        // count it as maxFileSize if within ~2 records of the limit
+        // it is much better to be slightly undersized than to be over at all
+        if (memSize > (maxFileSizeBytes - 2 * recordSize)) {
+          recordCountForNextMemCheck = DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
+          return true;
+        }
+
+        long maxRecordGuess = (long) (maxFileSizeBytes / ((float) recordSize));
+        long halfWayGuess = (recordCount + maxRecordGuess) / 2;
+        recordCountForNextMemCheck = min(
+            max(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK, halfWayGuess),
+            // will not look more than max records ahead
+            recordCount
+                + DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK
+        );
+      }
+      return false;
+    }
+  }
+
   private boolean shouldRotateAndMaybeUpdateTimers(SinkRecord currentRecord, long now) {
     Long currentTimestamp = null;
     if (isWallclockBased) {
@@ -575,7 +631,7 @@ public class TopicPartitionWriter {
         && lastRotate != null
         && currentTimestamp - lastRotate >= rotateIntervalMs;
     boolean scheduledRotation = rotateScheduleIntervalMs > 0 && now >= nextScheduledRotate;
-    boolean messageSizeRotation = recordCounter >= flushSize;
+    boolean messageCountRotation = recordCounter >= flushSize;
 
     log.trace(
         "Should apply periodic time-based rotation (rotateIntervalMs: '{}', lastRotate: "
@@ -599,10 +655,14 @@ public class TopicPartitionWriter {
         "Should apply size-based rotation (count {} >= flush size {})? {}",
         recordCounter,
         flushSize,
-        messageSizeRotation
+        messageCountRotation
     );
 
-    return periodicRotation || scheduledRotation || messageSizeRotation;
+    String partitionEncoding = partitioner.encodePartition(currentRecord);
+    RecordWriter writer = getWriter(currentRecord, partitionEncoding);
+    boolean fileSizeRotation = maxFilesizeRotator.checkMaxFileSizeReached(writer, recordCounter);
+
+    return periodicRotation || scheduledRotation || messageCountRotation || fileSizeRotation;
   }
 
   /**
