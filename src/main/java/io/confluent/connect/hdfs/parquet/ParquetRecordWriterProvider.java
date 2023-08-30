@@ -15,7 +15,7 @@
 
 package io.confluent.connect.hdfs.parquet;
 
-import io.confluent.connect.hdfs.MaxSizeRecordWriter;
+import io.confluent.connect.hdfs.SizeAwareRecordWriter;
 import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
@@ -53,7 +53,7 @@ public class ParquetRecordWriterProvider
 
   @Override
   public RecordWriter getRecordWriter(HdfsSinkConnectorConfig conf, String filename) {
-    return new MaxSizeRecordWriter() {
+    return new SizeAwareRecordWriter() {
       @Override
       public long getDataSize() {
         return writer.getDataSize();

@@ -17,6 +17,6 @@ package io.confluent.connect.hdfs;
 
 import io.confluent.connect.storage.format.RecordWriter;
 
-public interface MaxSizeRecordWriter extends RecordWriter {
+public interface SizeAwareRecordWriter extends RecordWriter {
   long getDataSize();
 }

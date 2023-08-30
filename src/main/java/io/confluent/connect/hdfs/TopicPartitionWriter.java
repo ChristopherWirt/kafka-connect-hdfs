@@ -61,11 +61,6 @@ import io.confluent.connect.storage.schema.StorageSchemaCompatibility;
 import io.confluent.connect.storage.wal.WAL;
 import io.confluent.connect.storage.wal.FilePathOffset;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
-import static org.apache.parquet.column.ParquetProperties.DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK;
-import static org.apache.parquet.column.ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
-
 public class TopicPartitionWriter {
   private static final Logger log = LoggerFactory.getLogger(TopicPartitionWriter.class);
   private static final TimestampExtractor WALLCLOCK =
@@ -575,48 +570,6 @@ public class TopicPartitionWriter {
     this.state = state;
   }
 
-  public static class MaxFileSizeRotator {
-    private final long maxFileSizeBytes;
-    private long recordCountForNextMemCheck = DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
-
-    public MaxFileSizeRotator(long maxFileSize) {
-      this.maxFileSizeBytes = maxFileSize;
-    }
-
-    public boolean checkMaxFileSizeReached(RecordWriter recordWriter, long recordCount) {
-      MaxSizeRecordWriter writer = (recordWriter instanceof MaxSizeRecordWriter)
-          ? (MaxSizeRecordWriter) recordWriter
-          : null;
-      if (writer == null || maxFileSizeBytes == -1) {
-        return false;
-      }
-
-      if (recordCount > recordCountForNextMemCheck) {
-
-        // Modified for readability version of InternalParquetRecordWriter.checkBlockSizeReached()
-        long memSize = writer.getDataSize();
-        long recordSize = memSize / recordCount;
-
-        // count it as maxFileSize if within ~2 records of the limit
-        // it is much better to be slightly undersized than to be over at all
-        if (memSize > (maxFileSizeBytes - 2 * recordSize)) {
-          recordCountForNextMemCheck = DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
-          return true;
-        }
-
-        long maxRecordGuess = (long) (maxFileSizeBytes / ((float) recordSize));
-        long halfWayGuess = (recordCount + maxRecordGuess) / 2;
-        recordCountForNextMemCheck = min(
-            max(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK, halfWayGuess),
-            // will not look more than max records ahead
-            recordCount
-                + DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK
-        );
-      }
-      return false;
-    }
-  }
-
   private boolean shouldRotateAndMaybeUpdateTimers(SinkRecord currentRecord, long now) {
     Long currentTimestamp = null;
     if (isWallclockBased) {
@@ -658,11 +611,19 @@ public class TopicPartitionWriter {
         messageCountRotation
     );
 
-    String partitionEncoding = partitioner.encodePartition(currentRecord);
-    RecordWriter writer = getWriter(currentRecord, partitionEncoding);
-    boolean fileSizeRotation = maxFilesizeRotator.checkMaxFileSizeReached(writer, recordCounter);
+
+    boolean fileSizeRotation = needsFileSizeRotation(currentRecord);
 
     return periodicRotation || scheduledRotation || messageCountRotation || fileSizeRotation;
+  }
+
+  private boolean needsFileSizeRotation(SinkRecord currentRecord) {
+    if (currentRecord == null) {
+      return false;
+    }
+    String partitionEncoding = partitioner.encodePartition(currentRecord);
+    RecordWriter writer = getWriter(currentRecord, partitionEncoding);
+    return maxFilesizeRotator.checkMaxFileSizeReached(writer, recordCounter);
   }
 
   /**
