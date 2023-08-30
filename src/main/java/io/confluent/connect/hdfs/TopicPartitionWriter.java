@@ -16,6 +16,7 @@
 package io.confluent.connect.hdfs;
 
 import io.confluent.connect.hdfs.wal.NoopWAL;
+import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.kafka.common.TopicPartition;
@@ -89,6 +90,10 @@ public class TopicPartitionWriter {
   private Long lastRotate;
   private final long rotateScheduleIntervalMs;
   private long nextScheduledRotate;
+
+  private final long maxFileSizeRotationBytes;
+  private MaxFileSizeRotator maxFilesizeRotator;
+
   // This is one case where we cannot simply wrap the old or new RecordWriterProvider with the
   // other because they have incompatible requirements for some methods -- one requires the Hadoop
   // config + extra parameters, the other requires the ConnectorConfig and doesn't get the other
@@ -197,6 +202,8 @@ public class TopicPartitionWriter {
     rotateIntervalMs = config.getLong(HdfsSinkConnectorConfig.ROTATE_INTERVAL_MS_CONFIG);
     rotateScheduleIntervalMs = config.getLong(HdfsSinkConnectorConfig
         .ROTATE_SCHEDULE_INTERVAL_MS_CONFIG);
+    maxFileSizeRotationBytes = config.getLong(HdfsSinkConnectorConfig
+        .ROTATE_MAX_FILE_SIZE_BYTES_CONFIG);
     timeoutMs = config.getLong(HdfsSinkConnectorConfig.RETRY_BACKOFF_CONFIG);
     compatibility = StorageSchemaCompatibility.getCompatibility(
         config.getString(StorageSinkConnectorConfig.SCHEMA_COMPATIBILITY_CONFIG));
@@ -319,6 +326,8 @@ public class TopicPartitionWriter {
         );
       }
     }
+
+    maxFilesizeRotator = new MaxFileSizeRotator(maxFileSizeRotationBytes);
   }
 
   @SuppressWarnings("fallthrough")
@@ -575,7 +584,7 @@ public class TopicPartitionWriter {
         && lastRotate != null
         && currentTimestamp - lastRotate >= rotateIntervalMs;
     boolean scheduledRotation = rotateScheduleIntervalMs > 0 && now >= nextScheduledRotate;
-    boolean messageSizeRotation = recordCounter >= flushSize;
+    boolean messageCountRotation = recordCounter >= flushSize;
 
     log.trace(
         "Should apply periodic time-based rotation (rotateIntervalMs: '{}', lastRotate: "
@@ -599,10 +608,22 @@ public class TopicPartitionWriter {
         "Should apply size-based rotation (count {} >= flush size {})? {}",
         recordCounter,
         flushSize,
-        messageSizeRotation
+        messageCountRotation
     );
 
-    return periodicRotation || scheduledRotation || messageSizeRotation;
+
+    boolean fileSizeRotation = needsFileSizeRotation(currentRecord);
+
+    return periodicRotation || scheduledRotation || messageCountRotation || fileSizeRotation;
+  }
+
+  private boolean needsFileSizeRotation(SinkRecord currentRecord) {
+    if (currentRecord == null) {
+      return false;
+    }
+    String partitionEncoding = partitioner.encodePartition(currentRecord);
+    RecordWriter writer = getWriter(currentRecord, partitionEncoding);
+    return maxFilesizeRotator.checkMaxFileSizeReached(writer, recordCounter);
   }
 
   /**

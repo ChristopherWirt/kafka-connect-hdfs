@@ -15,6 +15,7 @@
 
 package io.confluent.connect.hdfs.parquet;
 
+import io.confluent.connect.hdfs.SizeAwareRecordWriter;
 import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
@@ -52,7 +53,12 @@ public class ParquetRecordWriterProvider
 
   @Override
   public RecordWriter getRecordWriter(HdfsSinkConnectorConfig conf, String filename) {
-    return new RecordWriter() {
+    return new SizeAwareRecordWriter() {
+      @Override
+      public long getDataSize() {
+        return writer.getDataSize();
+      }
+
       final CompressionCodecName compressionCodecName = conf.parquetCompressionCodecName();
       final int blockSize = 256 * 1024 * 1024;
       final int pageSize = 64 * 1024;
@@ -104,6 +110,10 @@ public class ParquetRecordWriterProvider
         } catch (IOException e) {
           throw new ConnectException(e);
         }
+      }
+
+      public long size() {
+        return writer.getDataSize();
       }
 
       @Override
