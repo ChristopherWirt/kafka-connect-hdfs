@@ -26,7 +26,10 @@ public class MaxFileSizeRotatorTest {
   private void testMaxFileSizeWorks(int maxSizeMB) {
     MaxFileSizeRotator maxFileSizeRotator = new MaxFileSizeRotator(ONE_MB * maxSizeMB);
     SizeAwareRecordWriter sizeAwareRecordWriter = mock(SizeAwareRecordWriter.class);
-    assertTrue(findRolloverSizeIncrementing100kbRecords(sizeAwareRecordWriter, maxFileSizeRotator) < ONE_MB * maxSizeMB);
+    long fileSize = findRolloverSizeIncrementing100kbRecords(sizeAwareRecordWriter, maxFileSizeRotator);
+    long maxSize = ONE_MB * maxSizeMB;
+    assertTrue(fileSize < maxSize);
+    assertTrue("Should be within 90% of the maxSize",fileSize > maxSize * 0.9);
   }
 
   @Test
