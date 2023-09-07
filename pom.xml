@@ -363,6 +363,18 @@
             <version>${confluent-log4j.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Update parquet dependencies to fix PARQUET-2052 -->
+        <!-- https://github.com/apache/parquet-mr/pull/910 -->
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-column</artifactId>
+            <version>1.13.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-avro</artifactId>
+            <version>1.13.1</version>
+        </dependency>
         <dependency>
             <!-- add this to satisfy the dependency requirement of apacheds-jdbm1-->
             <groupId>org.apache.directory.jdbm</groupId>
