@@ -363,8 +363,7 @@
             <version>${confluent-log4j.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Update parquet dependencies to fix PARQUET-2052 -->
-        <!-- https://github.com/apache/parquet-mr/pull/910 -->
+        <!-- Update parquet dependencies to fix PARQUET-2052 https://github.com/apache/parquet-mr/pull/910 -->
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-column</artifactId>
