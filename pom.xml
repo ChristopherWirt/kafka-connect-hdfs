@@ -375,6 +375,11 @@
             <version>1.13.1</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-hadoop-bundle</artifactId>
+            <version>1.13.1</version>
+        </dependency>
+        <dependency>
             <!-- add this to satisfy the dependency requirement of apacheds-jdbm1-->
             <groupId>org.apache.directory.jdbm</groupId>
             <artifactId>apacheds-jdbm1</artifactId>
