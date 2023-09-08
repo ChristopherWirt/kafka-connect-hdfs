@@ -584,7 +584,7 @@ public class TopicPartitionWriter {
         && lastRotate != null
         && currentTimestamp - lastRotate >= rotateIntervalMs;
     boolean scheduledRotation = rotateScheduleIntervalMs > 0 && now >= nextScheduledRotate;
-    boolean messageCountRotation = recordCounter >= flushSize;
+    boolean messageCountRotation = flushSize > 0 && recordCounter >= flushSize;
 
     log.trace(
         "Should apply periodic time-based rotation (rotateIntervalMs: '{}', lastRotate: "
