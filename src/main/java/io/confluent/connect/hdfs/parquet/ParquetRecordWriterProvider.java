@@ -56,6 +56,9 @@ public class ParquetRecordWriterProvider
     return new SizeAwareRecordWriter() {
       @Override
       public long getDataSize() {
+        if (writer == null) {
+          return 0;
+        }
         return writer.getDataSize();
       }
 
@@ -113,6 +116,9 @@ public class ParquetRecordWriterProvider
       }
 
       public long size() {
+        if (writer == null) {
+          return 0;
+        }
         return writer.getDataSize();
       }
 
