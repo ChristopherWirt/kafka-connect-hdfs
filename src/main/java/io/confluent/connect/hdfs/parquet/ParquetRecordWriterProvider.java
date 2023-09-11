@@ -116,6 +116,9 @@ public class ParquetRecordWriterProvider
       }
 
       public long size() {
+        if (writer == null) {
+          return 0;
+        }
         return writer.getDataSize();
       }
 
