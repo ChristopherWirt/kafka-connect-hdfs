@@ -210,7 +210,7 @@ public class TopicPartitionWriter {
 
     String logsDir = config.getLogsDirFromTopic(tp.topic());
     boolean disableWal = config.getBoolean(HdfsSinkConnectorConfig.DISABLE_WAL_CONFIG);
-    wal = disableWal ? new NoopWAL() : storage.wal(logsDir, tp);
+    wal = disableWal ? new NoopWAL() : storage.wal(logsDir, tp, true);
 
     buffer = new LinkedList<>();
     writers = new HashMap<>();

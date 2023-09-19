@@ -15,6 +15,7 @@
 
 package io.confluent.connect.hdfs.storage;
 
+import io.confluent.connect.hdfs.wal.FSWAL;
 import io.confluent.connect.hdfs.wal.QFSWAL;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.mapred.FsInput;
@@ -178,6 +179,14 @@ public class HdfsStorage
   }
 
   public WAL wal(String topicsDir, TopicPartition topicPart) {
+    return wal(topicsDir, topicPart, false);
+  }
+
+  public WAL wal(String topicsDir, TopicPartition topicPart, boolean qfsWal) {
+    if (qfsWal) {
+      return new FSWAL(topicsDir, topicPart, this);
+    }
+
     return new QFSWAL(topicsDir, topicPart, this);
   }
 
