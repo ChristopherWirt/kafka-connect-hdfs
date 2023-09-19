@@ -184,10 +184,10 @@ public class HdfsStorage
 
   public WAL wal(String topicsDir, TopicPartition topicPart, boolean qfsWal) {
     if (qfsWal) {
-      return new FSWAL(topicsDir, topicPart, this);
+      return new QFSWAL(topicsDir, topicPart, this);
     }
 
-    return new QFSWAL(topicsDir, topicPart, this);
+    return new FSWAL(topicsDir, topicPart, this);
   }
 
   @Override
