@@ -3,7 +3,6 @@ package io.confluent.connect.hdfs.wal;
 import io.confluent.connect.hdfs.FileUtils;
 import io.confluent.connect.hdfs.storage.HdfsStorage;
 import io.confluent.connect.storage.wal.FilePathOffset;
-import io.confluent.connect.storage.wal.WAL;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
