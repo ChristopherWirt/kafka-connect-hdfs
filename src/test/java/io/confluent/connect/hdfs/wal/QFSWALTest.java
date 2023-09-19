@@ -12,7 +12,6 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class QFSWALTest extends TestWithMiniDFSCluster {
-
     @Test
     public void testLockCreating() throws Exception {
         setUp();
@@ -39,7 +38,7 @@ public class QFSWALTest extends TestWithMiniDFSCluster {
         setUp();
         HdfsStorage storage = new HdfsStorage(connectorConfig, url);
         TopicPartition tp = new TopicPartition("mytopic", 123);
-        QFSWAL wal = new QFSWAL("/logs", tp, storage, 1000, 2000);
+        QFSWAL wal = new QFSWAL("/logs", tp, storage, 500, 2000);
         String fileName1 = storage.list("/logs/mytopic/123/").get(0).getPath().getName();
 
         Thread.sleep(2000);
