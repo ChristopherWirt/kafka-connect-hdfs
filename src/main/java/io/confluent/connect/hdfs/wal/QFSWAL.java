@@ -75,9 +75,9 @@ public class QFSWAL implements WAL {
     this.logsDir = logsDir;
     this.topicPartition = topicPartition;
     this.lockDir = FileUtils.directoryName(storage.url(), logsDir, topicPartition);
-    this.lockFile = this.createOrRenameLockFile();
     this.lockRefreshIntervalInMs = lockRefreshIntervalInMs;
     this.lockTimeoutInMs = lockTimeoutInMs;
+    this.lockFile = this.createOrRenameLockFile();
     this.startRenamingTimer();
   }
 
