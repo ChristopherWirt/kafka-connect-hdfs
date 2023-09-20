@@ -215,6 +215,7 @@ public class QFSWAL implements WAL {
   @Override
   public void close() throws ConnectException {
     this.timer.cancel();
+    this.storage.delete(this.lockFile);
   }
 
   @Override
