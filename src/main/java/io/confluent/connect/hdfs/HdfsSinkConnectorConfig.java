@@ -166,8 +166,11 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
   private static final String KERBEROS_TICKET_RENEW_PERIOD_MS_DISPLAY = "Kerberos Ticket Renew "
       + "Period (ms)";
 
-  public static final String DISABLE_WAL_CONFIG = "wal.disable";
-  private static final boolean DISABLE_WAL_DEFAULT = false;
+  public static final String WAL_TYPE = "wal.type";
+  public static final String WAL_NOOP = "NOOP";
+  public static final String WAL_HDFS = "HDFS";
+  public static final String WAL_QFS = "QFS";
+
   private static final String DISABLE_WAL_DOC = "Disable WAL from being used to track the "
       + " committed files - can be used for testing the fallback methods";
   private static final String DISABLE_WAL_DISPLAY = "Disable WAL";
@@ -283,9 +286,9 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       );
 
       configDef.define(
-          DISABLE_WAL_CONFIG,
-          Type.BOOLEAN,
-          DISABLE_WAL_DEFAULT,
+          WAL_TYPE,
+          Type.STRING,
+          WAL_HDFS,
           Importance.LOW,
           DISABLE_WAL_DOC,
           group,

@@ -209,8 +209,16 @@ public class TopicPartitionWriter {
         config.getString(StorageSinkConnectorConfig.SCHEMA_COMPATIBILITY_CONFIG));
 
     String logsDir = config.getLogsDirFromTopic(tp.topic());
-    boolean disableWal = config.getBoolean(HdfsSinkConnectorConfig.DISABLE_WAL_CONFIG);
-    wal = disableWal ? new NoopWAL() : storage.wal(logsDir, tp, true);
+
+    String walType = config.getString(HdfsSinkConnectorConfig.WAL_TYPE);
+
+    if (walType.equalsIgnoreCase(HdfsSinkConnectorConfig.WAL_NOOP)) {
+      wal = new NoopWAL();
+    } else if (walType.equalsIgnoreCase(HdfsSinkConnectorConfig.WAL_QFS)) {
+      wal = storage.wal(logsDir, tp, true);
+    } else {
+      wal = storage.wal(logsDir, tp, false);
+    }
 
     buffer = new LinkedList<>();
     writers = new HashMap<>();
