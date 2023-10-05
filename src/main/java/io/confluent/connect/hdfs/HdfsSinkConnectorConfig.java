@@ -49,6 +49,7 @@ import io.confluent.connect.hdfs.orc.OrcFormat;
 import io.confluent.connect.hdfs.parquet.ParquetFormat;
 import io.confluent.connect.hdfs.storage.HdfsStorage;
 import io.confluent.connect.hdfs.string.StringFormat;
+import io.confluent.connect.hdfs.wal.WalType;
 import io.confluent.connect.storage.StorageSinkConnectorConfig;
 import io.confluent.connect.storage.common.ComposableConfig;
 import io.confluent.connect.storage.common.GenericRecommender;
@@ -167,9 +168,6 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       + "Period (ms)";
 
   public static final String WAL_TYPE = "wal.type";
-  public static final String WAL_NOOP = "NOOP";
-  public static final String WAL_HDFS = "HDFS";
-  public static final String WAL_QFS = "QFS";
 
   private static final String DISABLE_WAL_DOC = "Disable WAL from being used to track the "
       + " committed files - can be used for testing the fallback methods";
@@ -288,7 +286,7 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       configDef.define(
           WAL_TYPE,
           Type.STRING,
-          WAL_HDFS,
+          WalType.HDFS.name(),
           Importance.LOW,
           DISABLE_WAL_DOC,
           group,

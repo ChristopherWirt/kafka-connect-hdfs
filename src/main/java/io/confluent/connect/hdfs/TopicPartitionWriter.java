@@ -15,7 +15,7 @@
 
 package io.confluent.connect.hdfs;
 
-import io.confluent.connect.hdfs.wal.NoopWAL;
+import io.confluent.connect.hdfs.wal.WalType;
 import io.confluent.connect.storage.format.RecordWriter;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -210,15 +210,9 @@ public class TopicPartitionWriter {
 
     String logsDir = config.getLogsDirFromTopic(tp.topic());
 
-    String walType = config.getString(HdfsSinkConnectorConfig.WAL_TYPE);
-
-    if (walType.equalsIgnoreCase(HdfsSinkConnectorConfig.WAL_NOOP)) {
-      wal = new NoopWAL();
-    } else if (walType.equalsIgnoreCase(HdfsSinkConnectorConfig.WAL_QFS)) {
-      wal = storage.wal(logsDir, tp, true);
-    } else {
-      wal = storage.wal(logsDir, tp, false);
-    }
+    wal = WalType.valueOf(
+            config.getString(HdfsSinkConnectorConfig.WAL_TYPE)
+    ).create(logsDir, tp, storage);
 
     buffer = new LinkedList<>();
     writers = new HashMap<>();

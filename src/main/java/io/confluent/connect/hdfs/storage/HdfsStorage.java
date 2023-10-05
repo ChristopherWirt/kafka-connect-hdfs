@@ -178,15 +178,11 @@ public class HdfsStorage
     }
   }
 
-  public WAL wal(String topicsDir, TopicPartition topicPart) {
-    return wal(topicsDir, topicPart, false);
+  public WAL qfsWAL(String topicsDir, TopicPartition topicPart) {
+    return new QFSWAL(topicsDir, topicPart, this);
   }
 
-  public WAL wal(String topicsDir, TopicPartition topicPart, boolean qfsWal) {
-    if (qfsWal) {
-      return new QFSWAL(topicsDir, topicPart, this);
-    }
-
+  public WAL hdfsWAL(String topicsDir, TopicPartition topicPart) {
     return new FSWAL(topicsDir, topicPart, this);
   }
 
