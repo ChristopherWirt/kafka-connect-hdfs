@@ -47,7 +47,7 @@ public class QFSWAL implements WAL {
   private final TopicPartition topicPartition;
   private final Pattern pattern;
   private final String lockDir;
-  private LockFile lockFile;
+  private Lock lock;
   private final Duration lockRefreshInterval;
   private final Duration lockTimeout;
   private static final Logger log = LoggerFactory.getLogger(QFSWAL.class);
@@ -79,18 +79,18 @@ public class QFSWAL implements WAL {
     this.lockDir = FileUtils.directoryName(storage.url(), logsDir, topicPartition);
     this.lockRefreshInterval = lockRefreshInterval;
     this.lockTimeout = lockTimeout;
-    this.lockFile = this.createOrRenameLockFile();
+    this.lock = this.createOrRenameLock();
     this.startRenamingTimer();
   }
 
-  static class LockFile {
+  static class Lock {
     public final String storageURL;
     public final String logsDir;
     public final TopicPartition topicPartition;
     public final UUID uuid;
     public final Instant instant;
 
-    LockFile(
+    Lock(
             String storageURL,
             String logsDir,
             TopicPartition topicPartition,
@@ -114,8 +114,8 @@ public class QFSWAL implements WAL {
     }
   }
 
-  private LockFile getNewLockFile() {
-    return new LockFile(
+  private Lock getNewLock() {
+    return new Lock(
             this.storage.url(),
             this.logsDir,
             this.topicPartition,
@@ -124,35 +124,27 @@ public class QFSWAL implements WAL {
     );
   }
 
-  private LockFile createOrRenameLockFile() {
+  private Lock createOrRenameLock() {
     if (!this.storage.exists(this.lockDir)) {
       this.storage.create(this.lockDir);
     }
 
-    LockFile newLockFile = getNewLockFile();
-
-    List<LockFile> liveLockFiles = this.findLockFiles()
-            .stream()
-            .filter(l -> l.instant.isAfter(Instant.now().minus(this.lockTimeout)))
-            .collect(Collectors.toList());
-
-    if (!liveLockFiles.isEmpty()) {
+    if (!findAliveLocks().isEmpty()) {
       throw new ConnectException("Lock has been acquired by another process");
     }
 
-    this.storage.create(newLockFile.filePath(), true);
+    Lock newLock = getNewLock();
+    this.storage.create(newLock.filePath(), true);
 
-    liveLockFiles = this.findLockFiles()
-            .stream()
-            .filter(l -> l.instant.isAfter(Instant.now().minus(this.lockTimeout)))
-            .collect(Collectors.toList());
-
-    if (liveLockFiles.size() > 1) {
-      this.storage.delete(newLockFile.filePath());
+    if (findAliveLocks().size() > 1) {
+      // This kills the current task and gives the chance to
+      // the other process to consume.
+      // If both start to consume, at least one will die when it acquires the lock.
+      this.storage.delete(newLock.filePath());
       throw new ConnectException("Lock has been acquired by another process");
     }
 
-    return newLockFile;
+    return newLock;
   }
 
 
@@ -166,17 +158,17 @@ public class QFSWAL implements WAL {
   }
 
   private void renameLockFile() {
-    LockFile newLockFile = getNewLockFile();
+    Lock newLock = getNewLock();
 
     try {
-      this.storage.commit(this.lockFile.filePath(), newLockFile.filePath());
-      this.lockFile = newLockFile;
+      this.storage.commit(this.lock.filePath(), newLock.filePath());
+      this.lock = newLock;
     } catch (Exception e) {
       log.error("Failed to rename the file", e);
     }
   }
 
-  private List<LockFile> findLockFiles() {
+  private List<Lock> findLocks() {
     return this.storage.list(this.lockDir)
             .stream()
             .filter(FileStatus::isFile)
@@ -185,7 +177,7 @@ public class QFSWAL implements WAL {
             .map(pattern::matcher)
             .filter(Matcher::matches)
             .map(m ->
-              new LockFile(
+              new Lock(
                 this.storage.url(),
                 this.logsDir,
                 this.topicPartition,
@@ -194,31 +186,41 @@ public class QFSWAL implements WAL {
             )).collect(Collectors.toList());
   }
 
+  private List<Lock> findAliveLocks() {
+    return this.findLocks()
+            .stream()
+            .filter(l -> l.instant.isAfter(Instant.now().minus(this.lockTimeout)))
+            .collect(Collectors.toList());
+  }
+
   @Override
   public void acquireLease() throws ConnectException {
-    List<LockFile> lockFiles = this.findLockFiles();
+    // The ownership of lock is determined by the lock filenames.
+    // If there are more than two locks or the current process is not the owner,
+    // this method throws a ConnectException which kills the task.
+    List<Lock> aliveLocks = this.findAliveLocks();
 
-    if (lockFiles.isEmpty()) {
+    if (aliveLocks.isEmpty()) {
       throw new ConnectException("The lock file is not present in the log dir");
     }
 
-    if (lockFiles.size() > 1) {
-      throw new ConnectException("More than one lock file reside in the log dir");
+    if (aliveLocks.size() > 1) {
+      throw new ConnectException("More than one alive lock file reside in the log dir");
     }
 
-    LockFile lockFile = lockFiles.get(0);
+    Lock aliveLock = aliveLocks.get(0);
 
-    if (!lockFile.uuid.equals(this.uuid)) {
+    if (!aliveLock.uuid.equals(this.uuid)) {
       log.error(
               "UUID of the lock file {} for {}-{} topic-partition does not match {} uuid",
-              lockFile.filePath(),
+              aliveLock.filePath(),
               this.topicPartition.topic(),
               this.topicPartition.partition(),
               this.uuid);
       throw new ConnectException("Lock uuid does not match");
     }
 
-    if (lockFile.instant.isBefore(Instant.now().minus(this.lockTimeout))) {
+    if (aliveLock.instant.isBefore(Instant.now().minus(this.lockTimeout))) {
       throw new ConnectException(
               "Lock file has not been renamed for more than the threshold");
     }
@@ -240,7 +242,7 @@ public class QFSWAL implements WAL {
   @Override
   public void close() throws ConnectException {
     this.timer.cancel();
-    this.storage.delete(this.lockFile.filePath());
+    this.storage.delete(this.lock.filePath());
   }
 
   @Override
@@ -250,6 +252,8 @@ public class QFSWAL implements WAL {
 
   @Override
   public FilePathOffset extractLatestOffset() {
+    // QFSWAL doesn't keep the latest-offset in the generated files,
+    // returning null makes TopicPartitioner fall back to read offsets from the file names.
     return null;
   }
 }
