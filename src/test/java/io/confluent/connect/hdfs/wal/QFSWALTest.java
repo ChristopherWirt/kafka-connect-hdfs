@@ -7,6 +7,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -39,7 +40,7 @@ public class QFSWALTest extends TestWithMiniDFSCluster {
         setUp();
         HdfsStorage storage = new HdfsStorage(connectorConfig, url);
         TopicPartition tp = new TopicPartition("mytopic", 123);
-        QFSWAL wal = new QFSWAL("/logs", tp, storage, 500, 1000);
+        QFSWAL wal = new QFSWAL("/logs", tp, storage, Duration.ofMillis(500), Duration.ofMillis(1000));
         String fileName1 = storage.list("/logs/mytopic/123/").get(0).getPath().getName();
 
         Thread.sleep(1000);
@@ -57,7 +58,7 @@ public class QFSWALTest extends TestWithMiniDFSCluster {
         setUp();
         HdfsStorage storage = new HdfsStorage(connectorConfig, url);
         TopicPartition tp = new TopicPartition("mytopic", 123);
-        QFSWAL wal = new QFSWAL("/logs", tp, storage, 500, 1000);
+        QFSWAL wal = new QFSWAL("/logs", tp, storage, Duration.ofMillis(500), Duration.ofMillis(1000));
         wal.close();
 
         Thread.sleep(1500);
@@ -69,7 +70,7 @@ public class QFSWALTest extends TestWithMiniDFSCluster {
         setUp();
         HdfsStorage storage = new HdfsStorage(connectorConfig, url);
         TopicPartition tp = new TopicPartition("mytopic", 123);
-        QFSWAL wal = new QFSWAL("/logs", tp, storage, 1000, 2000);
+        QFSWAL wal = new QFSWAL("/logs", tp, storage, Duration.ofMillis(1000), Duration.ofMillis(2000));
 
         Thread.sleep(1500);
         wal.acquireLease();
@@ -80,10 +81,10 @@ public class QFSWALTest extends TestWithMiniDFSCluster {
         setUp();
         HdfsStorage storage = new HdfsStorage(connectorConfig, url);
         TopicPartition tp = new TopicPartition("mytopic", 123);
-        (new QFSWAL("/logs", tp, storage, 500, 1000)).close();
+        (new QFSWAL("/logs", tp, storage, Duration.ofMillis(500), Duration.ofMillis(1000))).close();
 
         Thread.sleep(1500);
-        QFSWAL wal = new QFSWAL("/logs", tp, storage, 500, 1000);
+        QFSWAL wal = new QFSWAL("/logs", tp, storage, Duration.ofMillis(500), Duration.ofMillis(1000));
         wal.acquireLease();
     }
 }
