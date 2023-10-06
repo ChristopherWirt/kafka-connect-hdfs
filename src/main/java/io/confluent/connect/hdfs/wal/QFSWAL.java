@@ -70,7 +70,7 @@ public class QFSWAL implements WAL {
     this.uuid = UUID.randomUUID();
     this.pattern = Pattern.compile(String.format(
             "(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
-                    + "-(?<epoch>\\d+)(\\.)%s",
+                    + "-(?<epochInMS>\\d+)(\\.)%s",
             LOCK_FILE_EXTENSION));
     this.timer = new Timer("QFSWAL-Timer", true);
     this.storage = storage;
@@ -182,7 +182,7 @@ public class QFSWAL implements WAL {
                 this.logsDir,
                 this.topicPartition,
                 UUID.fromString(m.group("uuid")),
-                Instant.ofEpochSecond(Long.parseLong(m.group("epoch")))
+                Instant.ofEpochMilli(Long.parseLong(m.group("epochInMS")))
             )).collect(Collectors.toList());
   }
 
