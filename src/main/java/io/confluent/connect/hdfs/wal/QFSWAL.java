@@ -129,8 +129,18 @@ public class QFSWAL implements WAL {
       this.storage.create(this.lockDir);
     }
 
+    // It gives two chance of grabbing the lock on startup.
+    // This should help when the new task comes up sooner than the expiry of the previous lock.
     if (!findAliveLocks().isEmpty()) {
-      throw new ConnectException("Lock has been acquired by another process");
+      try {
+        Thread.sleep(this.lockTimeout.toMillis());
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+
+      if (!findAliveLocks().isEmpty()) {
+        throw new ConnectException("Lock has been acquired by another process");
+      }
     }
 
     Lock newLock = getNewLock();
