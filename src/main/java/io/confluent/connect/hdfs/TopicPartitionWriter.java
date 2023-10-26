@@ -108,6 +108,8 @@ public class TopicPartitionWriter {
   private final Map<String, Long> endOffsets;
   private final long timeoutMs;
   private long failureTime;
+  private int failureCount;
+  private int failureTolerance;
   private final StorageSchemaCompatibility compatibility;
   private Schema currentSchema;
   private final String extension;
@@ -205,6 +207,7 @@ public class TopicPartitionWriter {
     maxFileSizeRotationBytes = config.getLong(HdfsSinkConnectorConfig
         .ROTATE_MAX_FILE_SIZE_BYTES_CONFIG);
     timeoutMs = config.getLong(HdfsSinkConnectorConfig.RETRY_BACKOFF_CONFIG);
+    failureTolerance = config.getInt(HdfsSinkConnectorConfig.WRITE_FAILURE_TOLERANCE_CONFIG);
     compatibility = StorageSchemaCompatibility.getCompatibility(
         config.getString(StorageSinkConnectorConfig.SCHEMA_COMPATIBILITY_CONFIG));
 
@@ -222,6 +225,7 @@ public class TopicPartitionWriter {
     endOffsets = new HashMap<>();
     state = State.RECOVERY_STARTED;
     failureTime = -1L;
+    failureCount = 0;
     // The next offset to consume after the last commit (one more than last offset written to HDFS)
     offset = -1L;
     if (writerProvider != null) {
@@ -339,6 +343,11 @@ public class TopicPartitionWriter {
     if (failureTime > 0 && now - failureTime < timeoutMs) {
       return;
     }
+    if (failureCount > failureTolerance) {
+      log.error("The writer has failed {} times consecutively.", failureCount);
+      // Kill the task as it has been failing more than the max retries
+      throw new ConnectException("The task has exceeded the failure tolerance.");
+    }
     if (state.compareTo(State.WRITE_STARTED) < 0) {
       boolean success = recover();
       if (!success) {
@@ -424,8 +433,9 @@ public class TopicPartitionWriter {
       } catch (ConnectException e) {
         log.error("Exception on topic partition {}: ", tp, e);
         failureTime = time.milliseconds();
+        failureCount += 1;
         setRetryTimeout(timeoutMs);
-        break;
+        return;
       }
     }
     if (buffer.isEmpty()) {
@@ -464,6 +474,7 @@ public class TopicPartitionWriter {
       } catch (ConnectException e) {
         log.error("Exception on topic partition {}: ", tp, e);
         failureTime = time.milliseconds();
+        failureCount += 1;
         setRetryTimeout(timeoutMs);
         return;
       }
@@ -471,6 +482,7 @@ public class TopicPartitionWriter {
       resume();
       state = State.WRITE_STARTED;
     }
+    this.failureCount = 0;
   }
 
   public void close() throws ConnectException {
