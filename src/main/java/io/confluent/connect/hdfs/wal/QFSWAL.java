@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -132,7 +131,7 @@ public class QFSWAL implements WAL {
 
     // It gives two chance of grabbing the lock on startup.
     // This should help when the new task comes up sooner than the expiry of the previous lock.
-    if (!findAliveLocks().isEmpty()){
+    if (!findAliveLocks().isEmpty()) {
       try {
         Thread.sleep(this.lockTimeout.toMillis());
       } catch (InterruptedException e) {
