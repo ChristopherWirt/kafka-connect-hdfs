@@ -187,6 +187,11 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
       = new ParentValueRecommender(FORMAT_CLASS_CONFIG, AvroFormat.class, AVRO_SUPPORTED_CODECS);
   private static final ParquetCodecRecommender PARQUET_COMPRESSION_RECOMMENDER 
       = new ParquetCodecRecommender();
+  public static final String WRITE_FAILURE_TOLERANCE_CONFIG = "write.failure.tolerance";
+  private static final Integer WRITE_FAILURE_TOLERANCE_DEFAULT = 10;
+  private static final String WRITE_FAILURE_TOLERANCE_DOC = "The maximum number of times that the"
+          + "task is going to handle consecutive write exceptions.";
+  private static final String WRITE_FAILURE_TOLERANCE_DISPLAY = "Failure Tolerance";
 
   static {
     STORAGE_CLASS_RECOMMENDER.addValidValues(
@@ -307,6 +312,17 @@ public class HdfsSinkConnectorConfig extends StorageSinkConnectorConfig {
           ROTATE_MAX_FILE_SIZE_BYTES_DISPLAY
       );
 
+      configDef.define(
+          WRITE_FAILURE_TOLERANCE_CONFIG,
+          Type.INT,
+          WRITE_FAILURE_TOLERANCE_DEFAULT,
+          Importance.MEDIUM,
+          WRITE_FAILURE_TOLERANCE_DOC,
+          group,
+          ++orderInGroup,
+          Width.MEDIUM,
+          WRITE_FAILURE_TOLERANCE_DISPLAY
+      );
     }
 
     {
