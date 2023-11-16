@@ -20,7 +20,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>kafka-connect-storage-common-parent</artifactId>
-        <version>11.1.4</version>
+        <version>11.2.3</version>
     </parent>
 
     <artifactId>kafka-connect-hdfs</artifactId>
@@ -56,15 +56,16 @@
         <confluent-log4j.version>1.2.17-cp8</confluent-log4j.version>
         <kafka.connect.maven.plugin.version>0.11.1</kafka.connect.maven.plugin.version>
         <maven.release.plugin.version>2.5.3</maven.release.plugin.version>
-        <kafka.connect.storage.common.version>11.1.4</kafka.connect.storage.common.version>
+        <kafka.connect.storage.common.version>11.2.3</kafka.connect.storage.common.version>
         <commons.collections.version>3.2.2</commons.collections.version>
         <commons-net.version>3.9.0</commons-net.version>
-        <ivy.version>2.5.1</ivy.version>
+        <ivy.version>2.5.2</ivy.version>
         <json-smart.version>2.4.10</json-smart.version>
         <libthrift.version>0.13.0</libthrift.version>
         <log4j2-api.version>2.17.1</log4j2-api.version>
         <jettison.version>1.5.4</jettison.version>
         <snakeyaml.version>2.0</snakeyaml.version>
+        <snappy.java.version>1.1.10.4</snappy.java.version>
         <woodstox-core.version>6.5.0</woodstox-core.version>
     </properties>
 
@@ -133,6 +134,12 @@
                 <groupId>org.apache.slider</groupId>
                 <artifactId>slider-core</artifactId>
                 <version>0.92.0-incubating</version>
+            </dependency>
+            <!-- pin dependency to fix cve -->
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy.java.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
